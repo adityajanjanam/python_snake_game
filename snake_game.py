@@ -130,15 +130,16 @@ def save_high_score(score, difficulty):
 
 # Function to display the player's score, high score, and level
 def display_score(score, high_score=None, difficulty=None):
+    # Move score to top-right corner
     value = score_font.render("Score: " + str(score), True, yellow)
-    game_window.blit(value, [10, 10])
+    game_window.blit(value, [width - 200, 10])
     if high_score is not None:
-        hs_value = font_style.render(f"High Score: {high_score}", True, yellow)
-        game_window.blit(hs_value, [10, 50])
+        hs_value = font_style.render(f"High: {high_score}", True, yellow)
+        game_window.blit(hs_value, [width - 200, 50])
     if difficulty:
         level_color = DIFFICULTY_LEVELS[difficulty]["color"]
         level_value = font_style.render(f"Level: {difficulty}", True, level_color)
-        game_window.blit(level_value, [10, 90])
+        game_window.blit(level_value, [width - 200, 90])
 
 # Draw rounded rectangle
 def draw_rounded_rect(surface, color, rect, radius=8):
