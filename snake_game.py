@@ -2,6 +2,7 @@ import pygame
 import time
 import random
 import os
+import math
 
 # Initialize Pygame
 pygame.init()
@@ -76,28 +77,68 @@ try:
 except:
     modern_font = font_style
 
-# High score file
-HIGH_SCORE_FILE = "high_score.txt"
-def load_high_score():
-    if os.path.exists(HIGH_SCORE_FILE):
-        with open(HIGH_SCORE_FILE, 'r') as f:
+# Difficulty levels configuration
+DIFFICULTY_LEVELS = {
+    "Easy": {
+        "base_speed": 10,
+        "obstacle_count": 5,
+        "food_weights": [90, 5, 3, 2],  # More normal food
+        "speed_increase": 1,  # Slower speed increase
+        "color": (0, 255, 0)  # Green
+    },
+    "Medium": {
+        "base_speed": 15,
+        "obstacle_count": 10,
+        "food_weights": [80, 10, 5, 5],  # Current settings
+        "speed_increase": 2,
+        "color": (255, 255, 0)  # Yellow
+    },
+    "Hard": {
+        "base_speed": 20,
+        "obstacle_count": 15,
+        "food_weights": [70, 15, 8, 7],  # More special food
+        "speed_increase": 3,
+        "color": (255, 165, 0)  # Orange
+    },
+    "Extreme": {
+        "base_speed": 25,
+        "obstacle_count": 20,
+        "food_weights": [60, 20, 10, 10],  # Many special effects
+        "speed_increase": 4,
+        "color": (255, 0, 0)  # Red
+    }
+}
+
+# High score file per difficulty
+def get_high_score_file(difficulty):
+    return f"high_score_{difficulty.lower()}.txt"
+
+def load_high_score(difficulty):
+    high_score_file = get_high_score_file(difficulty)
+    if os.path.exists(high_score_file):
+        with open(high_score_file, 'r') as f:
             try:
                 return int(f.read())
             except ValueError:
                 return 0
     return 0
 
-def save_high_score(score):
-    with open(HIGH_SCORE_FILE, 'w') as f:
+def save_high_score(score, difficulty):
+    high_score_file = get_high_score_file(difficulty)
+    with open(high_score_file, 'w') as f:
         f.write(str(score))
 
-# Function to display the player's score and high score
-def display_score(score, high_score=None):
+# Function to display the player's score, high score, and level
+def display_score(score, high_score=None, difficulty=None):
     value = score_font.render("Score: " + str(score), True, yellow)
     game_window.blit(value, [10, 10])
     if high_score is not None:
         hs_value = font_style.render(f"High Score: {high_score}", True, yellow)
         game_window.blit(hs_value, [10, 50])
+    if difficulty:
+        level_color = DIFFICULTY_LEVELS[difficulty]["color"]
+        level_value = font_style.render(f"Level: {difficulty}", True, level_color)
+        game_window.blit(level_value, [10, 90])
 
 # Draw rounded rectangle
 def draw_rounded_rect(surface, color, rect, radius=8):
@@ -130,8 +171,8 @@ def draw_food_icon(x, y, food_type):
         points = []
         cx, cy, r = x+snake_block/2, y+snake_block/2, snake_block/2
         for i in range(5):
-            angle = i * 144 * 3.14159 / 180
-            points.append((cx + r * 0.95 * pygame.math.cos(angle), cy + r * 0.95 * pygame.math.sin(angle)))
+            angle = i * 144 * math.pi / 180
+            points.append((cx + r * 0.95 * math.cos(angle), cy + r * 0.95 * math.sin(angle)))
         pygame.draw.polygon(game_window, flat_bonus, points)
     elif food_type["effect"] == "speed":
         # Lightning bolt: blue
@@ -172,11 +213,43 @@ def draw_overlay(text_lines, color=(255,255,255), alpha=180):
         y += 50
     game_window.blit(overlay, (0,0))
 
+# Level selection screen
+def level_selection_screen():
+    selected_level = "Medium"
+    while True:
+        game_window.blit(background_img, (0, 0))
+        text_lines = ["SELECT DIFFICULTY", ""]
+        for level in DIFFICULTY_LEVELS.keys():
+            if level == selected_level:
+                text_lines.append(f"▶ {level}")
+            else:
+                text_lines.append(f"  {level}")
+        text_lines.extend(["", "Use ↑↓ to select, SPACE to start", "ESC to go back"])
+        draw_overlay(text_lines, color=yellow)
+        pygame.display.update()
+        
+        for event in pygame.event.get():
+            if event.type == pygame.QUIT:
+                pygame.quit()
+                quit()
+            if event.type == pygame.KEYDOWN:
+                if event.key == pygame.K_UP:
+                    levels = list(DIFFICULTY_LEVELS.keys())
+                    current_index = levels.index(selected_level)
+                    selected_level = levels[(current_index - 1) % len(levels)]
+                elif event.key == pygame.K_DOWN:
+                    levels = list(DIFFICULTY_LEVELS.keys())
+                    current_index = levels.index(selected_level)
+                    selected_level = levels[(current_index + 1) % len(levels)]
+                elif event.key == pygame.K_SPACE:
+                    return selected_level
+                elif event.key == pygame.K_ESCAPE:
+                    return None
+
 def start_screen():
     use_custom = False
     while True:
-        bg = custom_bg if use_custom and custom_bg else background_img
-        game_window.blit(bg, (0, 0))
+        game_window.blit(background_img, (0, 0))
         text_lines = ["SNAKE GAME", "Press SPACE to Start", "Arrows: Move | P: Pause | Q: Quit | C: Replay", "Press S to Toggle Skins"]
         draw_overlay(text_lines, color=yellow)
         pygame.display.update()
@@ -190,26 +263,31 @@ def start_screen():
                 if event.key == pygame.K_s:
                     use_custom = not use_custom
 
-# Main game loop
-def game_loop(use_custom=False):
+def game_loop(use_custom=False, difficulty="Medium"):
     game_over = False
     game_close = False
     replay = False
-
-    # High score
-    high_score = load_high_score()
+    
+    # Get difficulty settings
+    level_config = DIFFICULTY_LEVELS[difficulty]
+    base_speed = level_config["base_speed"]
+    obstacle_count = level_config["obstacle_count"]
+    food_weights = level_config["food_weights"]
+    speed_increase = level_config["speed_increase"]
+    
+    # High score for this difficulty
+    high_score = load_high_score(difficulty)
+    
     # Initial position of the snake
     x = width / 2
     y = height / 2
-
     # Change in position
     x_change = 0
     y_change = 0
-
     # Snake body (list of blocks)
     snake_list = []
     snake_length = 1
-
+    
     # Food types: (color, effect, points)
     FOOD_TYPES = [
         {"color": orange, "effect": "normal", "points": 1},
@@ -217,14 +295,15 @@ def game_loop(use_custom=False):
         {"color": red, "effect": "speed", "points": 1},
         {"color": purple, "effect": "slow", "points": 1},
     ]
+    
     # Initial food
-    food_type = random.choices(FOOD_TYPES, weights=[80, 10, 5, 5])[0]
+    food_type = random.choices(FOOD_TYPES, weights=food_weights)[0]
     food_x = round(random.randrange(0, width - snake_block) / 20.0) * 20.0
     food_y = round(random.randrange(0, height - snake_block) / 20.0) * 20.0
-
-    # Generate obstacles (10 random blocks)
+    
+    # Generate obstacles based on difficulty
     obstacles = []
-    for _ in range(10):
+    for _ in range(obstacle_count):
         while True:
             ox = round(random.randrange(0, width - snake_block) / 20.0) * 20.0
             oy = round(random.randrange(0, height - snake_block) / 20.0) * 20.0
@@ -232,16 +311,16 @@ def game_loop(use_custom=False):
             if (ox, oy) != (width/2, height/2) and (ox, oy) != (food_x, food_y):
                 obstacles.append([ox, oy])
                 break
-
+    
     paused = False
     # Set base speed for this game
-    base_speed = 15
     snake_speed = base_speed
+    
     while not game_over:
         while game_close:
             bg = custom_bg if use_custom and custom_bg else background_img
             game_window.blit(bg, (0, 0))
-            text_lines = ["GAME OVER!", f"Final Score: {snake_length - 1}", f"High Score: {high_score}", "Press Q to Quit or C to Play Again"]
+            text_lines = ["GAME OVER!", f"Final Score: {snake_length - 1}", f"High Score: {high_score}", f"Difficulty: {difficulty}", "Press Q to Quit or C to Play Again"]
             draw_overlay(text_lines, color=yellow)
             pygame.display.update()
             if gameover_sound:
@@ -259,6 +338,7 @@ def game_loop(use_custom=False):
                         replay = True
                         game_over = True
                         game_close = False
+        
         for event in pygame.event.get():
             if event.type == pygame.QUIT:
                 game_over = True
@@ -286,7 +366,7 @@ def game_loop(use_custom=False):
                 if event.type == pygame.KEYDOWN and event.key == pygame.K_p:
                     paused = False
             clock.tick(5)
-
+        
         # Check for boundary collision
         if x >= width or x < 0 or y >= height or y < 0:
             game_close = True
@@ -294,39 +374,39 @@ def game_loop(use_custom=False):
         for obs in obstacles:
             if x == obs[0] and y == obs[1]:
                 game_close = True
-
+        
         # Update snake position
         x += x_change
         y += y_change
         bg = custom_bg if use_custom and custom_bg else background_img
         game_window.blit(bg, (0, 0))
-
+        
         # Draw obstacles
         for obs in obstacles:
             draw_rounded_rect(game_window, obstacle_color, [obs[0], obs[1], snake_block, snake_block], radius=8)
         # Draw food icon
         draw_food_icon(food_x, food_y, food_type)
-
+        
         # Add new block to the snake's body
         snake_head = [x, y]
         snake_list.append(snake_head)
         if len(snake_list) > snake_length:
             del snake_list[0]
-
+        
         # Check for self-collision
         for block in snake_list[:-1]:
             if block == snake_head:
                 game_close = True
-
+        
         # Draw snake and update display
         draw_snake(snake_block, snake_list, use_custom=use_custom)
-        display_score(snake_length - 1, high_score)
+        display_score(snake_length - 1, high_score, difficulty)
         pygame.display.update()
-
+        
         # Check if snake eats food
         if x == food_x and y == food_y:
             # Choose new food type and position
-            food_type = random.choices(FOOD_TYPES, weights=[80, 10, 5, 5])[0]
+            food_type = random.choices(FOOD_TYPES, weights=food_weights)[0]
             food_x = round(random.randrange(0, width - snake_block) / 20.0) * 20.0
             food_y = round(random.randrange(0, height - snake_block) / 20.0) * 20.0
             # Handle food effect
@@ -344,19 +424,25 @@ def game_loop(use_custom=False):
                 eat_sound.play()
             if snake_length - 1 > high_score:
                 high_score = snake_length - 1
-                save_high_score(high_score)
-
+                save_high_score(high_score, difficulty)
+        
         # Gradually increase speed with score (except for food effects)
-        snake_speed = base_speed + (snake_length // 5)
+        snake_speed = base_speed + (snake_length // 5) * speed_increase
         clock.tick(snake_speed)
-
+    
     pygame.quit()
     quit()
     return replay
 
 # Run the game
 use_custom = start_screen()
-while True:
-    replay = game_loop(use_custom)
-    if not replay:
-        break
+if use_custom is not None:
+    while True:
+        difficulty = level_selection_screen()
+        if difficulty is None:
+            break
+        # Keep playing the same difficulty until player quits
+        while True:
+            replay = game_loop(use_custom, difficulty)
+            if not replay:
+                break  # Go back to level selection
