@@ -13,7 +13,10 @@ Add your screenshots here! (Example:)
 
 | Start Screen | Gameplay | Game Over |
 |--------------|----------|-----------|
-| ![Start](screenshots/start.png) | ![Game](screenshots/gameplay.png) | ![Over](screenshots/gameover.png) |
+| ![Start]<img width="975" height="774" alt="image" src="https://github.com/user-attachments/assets/8a3c9838-07d7-4c38-888a-61a918eab706" />
+ | ![Game]<img width="975" height="768" alt="image" src="https://github.com/user-attachments/assets/8494a68a-94cb-4e24-94b5-2f051d4c27c6" />
+ | ![Over]<img width="975" height="773" alt="image" src="https://github.com/user-attachments/assets/10a5f29f-4474-41da-80fa-874d76323a96" />
+ |
 
 ---
 
