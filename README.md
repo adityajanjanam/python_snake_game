@@ -122,4 +122,9 @@ This project is open-source under the MIT License.
 ## Author
 Developed by **Aditya Janjanam**
 
+## 📫 Contact
+- [LinkedIn](https://www.linkedin.com/in/adityajanjanam)
+- [GitHub](https://github.com/adityajanjanam)
+- [adityajanjanam.com](https://adityajanjanam.com)
+
 For any questions or contributions, feel free to create a pull request or open an issue on GitHub!
